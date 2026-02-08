@@ -1,0 +1,6 @@
+com/mycompany/server/Broadcast.class
+com/mycompany/server/User.class
+com/mycompany/server/Mensaje.class
+com/mycompany/server/Recibe.class
+com/mycompany/server/Cliente.class
+com/mycompany/server/Server.class
