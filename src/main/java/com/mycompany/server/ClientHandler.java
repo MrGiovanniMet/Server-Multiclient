@@ -152,7 +152,8 @@ public class ClientHandler implements Runnable
         return this.data.hashCode();
     }
     @Override
-    public boolean equals(Object o){
+    public boolean equals(Object o)
+    {
         if(this==o)return true;
         if(o==null || this.getClass()!=o.getClass())return false;
         ClientHandler c = (ClientHandler)o;
