@@ -9,6 +9,7 @@ public class Server {
     public static void main(String[] args) 
     {
         Thread broadcast = new Thread(new Broadcaster());
+        broadcast.start();
         try {
             ServerSocket serverSocket = new ServerSocket(5555);
             System.out.println("ServerSocket: " + serverSocket);
