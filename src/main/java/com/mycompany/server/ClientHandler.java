@@ -4,10 +4,13 @@
  */
 package com.mycompany.server;
 
+import com.mycompany.server.DataBase.AuthService;
+import com.mycompany.server.DataBase.MySQLHandler;
 import com.mycompany.server.Json.AuthResponse;
 import com.mycompany.server.Json.ClientLogInData;
 import com.google.gson.Gson;
 import com.mycompany.server.Json.Message;
+import com.mycompany.server.MessageService.IBroadcast;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -23,15 +26,17 @@ import java.sql.SQLException;
 public class ClientHandler implements Runnable 
 {
     
-    private Socket socket;
+    private final Socket socket;
     private BufferedReader reader;
     private BufferedWriter writer;
     private final Gson gson = new Gson();
-    private ClientLogInData data = new ClientLogInData();
+    private ClientLogInData user = new ClientLogInData();
+    private final IBroadcast broadCast;
     
-    public ClientHandler(Socket socket)
+    public ClientHandler(Socket socket,IBroadcast broadcast)
     {
         this.socket = socket;
+        this.broadCast=broadcast;
         try{
             this.reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             this.writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -41,10 +46,7 @@ public class ClientHandler implements Runnable
             this.CloseSession();
         }
     }
-    private ClientHandler(ClientLogInData data)
-    {
-        this.data=data;
-    }
+    
     @Override
     public void run()
     {
@@ -59,7 +61,7 @@ public class ClientHandler implements Runnable
                 this.CloseSession();
                 break;
             }
-            var msg = new Message(this.data.userName(),message);
+            var msg = new Message(this.user.userName(),message);
             Broadcast(msg);
             System.out.println(msg.userName()+": "+msg.message());
         }
@@ -70,8 +72,8 @@ public class ClientHandler implements Runnable
         AuthResponse res;
         do{
             try{
-                ClientLogInData user = gson.fromJson(this.reader.readLine(), ClientLogInData.class);
-                res = ValidateUser(user);
+                ClientLogInData data = gson.fromJson(this.reader.readLine(), ClientLogInData.class);
+                res = ValidateUser(data);
                 this.writer.write(gson.toJson(res));
                 this.writer.newLine();
             }catch(IOException e){
@@ -85,25 +87,25 @@ public class ClientHandler implements Runnable
     
     private AuthResponse ValidateUser(ClientLogInData data)
     {
-        if(Broadcaster.CheckUser(new ClientHandler(data)))
+        if(this.broadCast.CheckUser(data))
             return new AuthResponse(false,"Lo sentimos, este usuario ya se encuentra adentro");
         return CheckDB(data);
     }
     
-    private AuthResponse CheckDB(ClientLogInData user)
+    private AuthResponse CheckDB(ClientLogInData data)
     {
         AuthService authService = new AuthService(MySQLHandler.getConnection());
         AuthResponse auth = new AuthResponse();
         try{
-            auth = authService.ValidateUser(user);
+            auth = authService.ValidateUser(data);
         }catch(SQLException e){
             System.out.println("System error:\n"+e);
         }finally
         {
             if(auth.Valid())
             {
-                this.data=user;
-                Broadcaster.AddUser(this);
+                this.user=data;
+                this.broadCast.AddUser(this.user,this.writer);
             }
         }
         return auth;
@@ -111,18 +113,18 @@ public class ClientHandler implements Runnable
     
     private void Broadcast(Message message)
     {
-        Broadcaster.AddMessage(new MessageContainer(this,message));
+        this.broadCast.AddMessage(message);
     }
     private void WelcomeMessage()
     {
-        String mensaje = this.data.userName()+" HA ENTRADO AL CHAT";
+        String mensaje = this.user.userName()+" HA ENTRADO AL CHAT";
         this.Broadcast(new Message("SERVIDOR",mensaje));    
         System.out.println("SERVIDOR: "+mensaje);
     }
     private void CloseSession()
     {
-        Broadcaster.RemoveUser(this);
-        var msg = new Message("SERVIDOR",this.data.userName()+" HA ABANDONADO EL CHAT");
+        this.broadCast.RemoveUser(this.user);
+        var msg = new Message("SERVIDOR",this.user.userName()+" HA ABANDONADO EL CHAT");
         this.Broadcast(msg);
         System.out.println(msg.userName()+": "+msg.message());
         try{
@@ -138,21 +140,5 @@ public class ClientHandler implements Runnable
         }catch(IOException e){
             System.out.println("System error:\n"+e);
         }
-    }
-    @Override
-    public int hashCode(){
-        return this.data.hashCode();
-    }
-    @Override
-    public boolean equals(Object o)
-    {
-        if(this==o)return true;
-        if(o==null || this.getClass()!=o.getClass())return false;
-        ClientHandler c = (ClientHandler)o;
-        return this.data.equals(c.data);
-    }
-    public BufferedWriter getWriter()
-    {
-        return new BufferedWriter(this.writer);
     }
 }

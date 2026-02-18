@@ -1,5 +1,6 @@
 package com.mycompany.server;
 
+import com.mycompany.server.MessageService.BQBroadcast;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -9,7 +10,8 @@ public class Server {
     static ServerSocket serverSocket;
     public static void main(String[] args) 
     {
-        Thread broadcast = new Thread(new Broadcaster());
+        var bc = new BQBroadcast();
+        Thread broadcast = new Thread(bc);
         broadcast.start();
         try {
             serverSocket = new ServerSocket(5555);
@@ -18,7 +20,7 @@ public class Server {
             while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
                 
-                ClientHandler handler = new ClientHandler(socket);
+                ClientHandler handler = new ClientHandler(socket,bc);
                 
                 Thread thread = new Thread(handler);
                 thread.start();
