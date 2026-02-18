@@ -17,17 +17,28 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class Broadcaster implements Runnable 
 {
-    public static final BlockingQueue<MessageContainer> queue = new LinkedBlockingQueue<>();
-    public static final Set<ClientHandler> clientes = ConcurrentHashMap.newKeySet();
-    private static final Gson gson = new Gson();
+    private static final BlockingQueue<MessageContainer> queue;
+    private static final Set<ClientHandler> clientes;
+    private static final Gson gson;
+    
+    static
+    {
+        queue = new LinkedBlockingQueue<>();
+        clientes = ConcurrentHashMap.newKeySet();
+        gson = new Gson();
+    }
+    
     
     @Override
     public void run()
     {
         while(true)
         {
-            for(var message : queue)
-                sendMessage(message);
+            try{
+                sendMessage(queue.take());
+            }catch(InterruptedException e){
+                System.out.println("System error:\n"+e);
+            }
         }
     }
     private void sendMessage(MessageContainer message)
@@ -45,12 +56,20 @@ public class Broadcaster implements Runnable
             }
         }
     }
-    public static void AddMessage(MessageContainer message){
-        queue.add(message);
-    }
-    public static void RemoveUser(ClientHandler user)
+    public static boolean AddUser(ClientHandler user)
     {
-        clientes.remove(user);
+        return clientes.add(user);
+    }
+    public static boolean CheckUser(ClientHandler user)
+    { 
+       return clientes.contains(user);
+    }
+    public static void AddMessage(MessageContainer message){
+        queue.offer(message);
+    }
+    public static boolean RemoveUser(ClientHandler user)
+    {
+        return clientes.remove(user);
     }
 
 }

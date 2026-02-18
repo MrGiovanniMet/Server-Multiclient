@@ -1,6 +1,7 @@
-com/mycompany/server/Broadcast.class
-com/mycompany/server/User.class
-com/mycompany/server/Mensaje.class
-com/mycompany/server/Recibe.class
-com/mycompany/server/Cliente.class
-com/mycompany/server/Server.class
+com/mycompany/server/MessageContainer.class
+com/mycompany/server/AuthService.class
+com/mycompany/server/Json/AuthResponse.class
+com/mycompany/server/Json/Message.class
+com/mycompany/server/Json/ClientLogInData.class
+com/mycompany/server/ClientHandler.class
+com/mycompany/server/Broadcaster.class

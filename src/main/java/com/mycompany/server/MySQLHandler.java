@@ -4,28 +4,28 @@
  */
 package com.mycompany.server;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import javax.sql.DataSource;
 /**
  *
  * @author claude
  */
 public class MySQLHandler 
 {
-    private static final String URL = "jdbc:mysql://localhost:3306/chatmultiusuario";
-    public static final String USER = "root";
-    public static final String PSWD ="Win2002Racedb$";
-    
-    public static Connection getConnection()
+    private static HikariDataSource dataSource=null;
+    static
     {
-       Connection connection = null;
-       try{
-           Class.forName("com.mysql.cj.jdbc.Driver");
-           connection = (Connection)DriverManager.getConnection(URL,USER,PSWD);
-       }catch(Exception e){
-           System.out.println("System error:\n"+ e.getMessage());
-       }
-       return connection;
-   }
+        HikariConfig config= new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/chatmultiusuario");
+        config.setUsername("root");
+        config.setPassword("Win2002Racedb$");
+        
+        dataSource = new HikariDataSource(config);
+    }
+    
+    public static DataSource getConnection()
+    {
+       return dataSource;
+    }
 }

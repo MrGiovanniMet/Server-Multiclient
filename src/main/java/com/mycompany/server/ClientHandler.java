@@ -14,9 +14,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
@@ -26,12 +23,11 @@ import java.sql.SQLException;
 public class ClientHandler implements Runnable 
 {
     
-    private final Socket socket;
+    private Socket socket;
     private BufferedReader reader;
     private BufferedWriter writer;
     private final Gson gson = new Gson();
     private ClientLogInData data = new ClientLogInData();
-    private static final String QUERY ="SELECT user, pass FROM usuario WHERE user = ? AND pass = ?";
     
     public ClientHandler(Socket socket)
     {
@@ -44,6 +40,10 @@ public class ClientHandler implements Runnable
             System.out.println("System error:\n"+e);
             this.CloseSession();
         }
+    }
+    private ClientHandler(ClientLogInData data)
+    {
+        this.data=data;
     }
     @Override
     public void run()
@@ -70,8 +70,8 @@ public class ClientHandler implements Runnable
         AuthResponse res;
         do{
             try{
-                this.data = gson.fromJson(this.reader.readLine(), ClientLogInData.class);
-                res = ValidateUser(this.data);
+                ClientLogInData user = gson.fromJson(this.reader.readLine(), ClientLogInData.class);
+                res = ValidateUser(user);
                 this.writer.write(gson.toJson(res));
                 this.writer.newLine();
             }catch(IOException e){
@@ -83,40 +83,32 @@ public class ClientHandler implements Runnable
         this.WelcomeMessage();
     }
     
-    private AuthResponse ValidateUser(ClientLogInData data){
-        Connection conn = MySQLHandler.getConnection();
+    private AuthResponse ValidateUser(ClientLogInData data)
+    {
+        if(Broadcaster.CheckUser(new ClientHandler(data)))
+            return new AuthResponse(false,"Lo sentimos, este usuario ya se encuentra adentro");
+        return CheckDB(data);
+    }
+    
+    private AuthResponse CheckDB(ClientLogInData user)
+    {
+        AuthService authService = new AuthService(MySQLHandler.getConnection());
         AuthResponse auth = new AuthResponse();
         try{
-            PreparedStatement ps = conn.prepareStatement(QUERY);
-            ps.setString(1, data.userName());
-            ps.setString(2, data.password());
-            ResultSet rs = ps.executeQuery();
-            
-            ClientLogInData client = new ClientLogInData(rs.getString("user"),
-                    rs.getString("pass"));
-            if(rs.next())
-            {
-                System.out.println(client);
-                if(Broadcaster.clientes.contains(this))
-                {
-                    auth = new AuthResponse(false,
-                            "Lo sentimos, este usuario ya se encuentra adentro");
-                }else
-                {
-                    auth = new AuthResponse(true,
-                            "Inicio de sesion exitoso");
-                    Broadcaster.clientes.add(this);
-                }
-            }else
-            {
-                auth = new AuthResponse(false,
-                            "usuario o contrasena incorrecta");
-            }
+            auth = authService.ValidateUser(user);
         }catch(SQLException e){
             System.out.println("System error:\n"+e);
+        }finally
+        {
+            if(auth.Valid())
+            {
+                this.data=user;
+                Broadcaster.AddUser(this);
+            }
         }
         return auth;
     }
+    
     private void Broadcast(Message message)
     {
         Broadcaster.AddMessage(new MessageContainer(this,message));
